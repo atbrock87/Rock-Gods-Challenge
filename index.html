@@ -1,148 +1,208 @@
+
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Rock Gods Challenge</title>
+  <meta charset="UTF-8" />
+  <title>Rock Gods Final Battle</title>
   <style>
     body {
-      background: radial-gradient(circle, #1b003a, #000000);
-      color: #00ffe5;
+      background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+      color: #fff;
       font-family: 'Orbitron', sans-serif;
       text-align: center;
-      padding: 2rem;
-      user-select: none;
+      padding: 40px;
     }
-    button {
-      margin: 1rem;
-      padding: 1rem 2rem;
-      font-size: 1.2rem;
+    .button-container button {
+      background: #ff0080;
       border: none;
-      border-radius: 8px;
-      background: linear-gradient(to right, #ff00c8, #00ffff);
-      color: black;
+      padding: 15px 30px;
+      margin: 10px;
+      font-size: 18px;
+      color: #fff;
       cursor: pointer;
-      transition: transform 0.2s;
+      border-radius: 5px;
     }
-    button:hover {
-      transform: scale(1.05);
+    .button-container button:hover {
+      background: #ff66b2;
     }
     .note-sequence {
-      font-size: 2rem;
-      margin: 2rem 0;
+      font-size: 28px;
+      margin: 20px;
     }
-    .hidden {
-      display: none;
+    #timer {
+      font-size: 24px;
+      margin: 20px;
+      color: #ffcc00;
     }
   </style>
 </head>
 <body>
-  <h1>🎸 Rock Gods Final Challenge 🎹</h1>
-  <div id="menu">
-    <h2>Select Number of Players</h2>
-    <button onclick="startGame(2)">2 Players</button>
-    <button onclick="startGame(3)">3 Players</button>
-    <button onclick="startGame(4)">4 Players</button>
-  </div>
+  <h1>Rock Gods Final Battle</h1>
+  <div id="status">Select the number of players:</div>
+  <div class="button-container" id="playerButtons"></div>
+  <div class="button-container" id="noteButtons"></div>
+  <div class="note-sequence" id="noteSequence"></div>
+  <div id="timer"></div>
+  <div class="button-container" id="passFailButtons"></div>
 
-  <div id="game" class="hidden">
-    <h2 id="playerLabel">Player Turn</h2>
-    <div id="roundLabel"></div>
-    <div id="notePrompt"></div>
-    <div class="note-sequence" id="noteSequence"></div>
-    <button onclick="submitResult(true)">✅ PASS</button>
-    <button onclick="submitResult(false)">❌ FAIL</button>
-  </div>
-
-  <div id="endScreen" class="hidden">
-    <h2 id="endMessage"></h2>
-    <button onclick="location.reload()">🔁 Restart</button>
-  </div>
-
-  <audio id="successSound" src="success.mp3"></audio>
-  <audio id="failSound" src="fail.mp3"></audio>
-  <audio id="backgroundMusic" loop autoplay muted>
-    <source src="background.mp3" type="audio/mpeg">
+  <audio id="backgroundMusic" loop>
+    <source src="background.mp3" type="audio/mpeg" />
   </audio>
 
   <script>
-    const NOTES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
-    let players = [];
-    let currentPlayer = 0;
-    let currentSequence = [];
-    let currentRound = 1;
+    const statusDiv = document.getElementById('status');
+    const playerButtonsDiv = document.getElementById('playerButtons');
+    const noteButtonsDiv = document.getElementById('noteButtons');
+    const noteSequenceDiv = document.getElementById('noteSequence');
+    const passFailButtonsDiv = document.getElementById('passFailButtons');
+    const timerDiv = document.getElementById('timer');
 
-    function startGame(numPlayers) {
-      const bgMusic = document.getElementById('backgroundMusic');
-      bgMusic.muted = false;
-      bgMusic.play();
-      players = [];
-      for (let i = 0; i < numPlayers; i++) {
-        players.push({ round: 1, active: true });
+    const notes = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+    const roundChoices = [
+      [4,5,6],
+      [5,6,7],
+      [6,7,8]
+    ];
+    let numPlayers = 0;
+    let currentPlayer = 1;
+    let currentRound = 1;
+    const totalRounds = 3;
+    const playerProgress = {};
+
+    // Start background music
+    const bgMusic = document.getElementById('backgroundMusic');
+    bgMusic.volume = 0.3;
+    bgMusic.play();
+
+    // Initialize
+    statusDiv.textContent = "Select the number of players:";
+    [2,3,4].forEach(n => {
+      const button = document.createElement('button');
+      button.textContent = `${n} Players`;
+      button.onclick = () => startGame(n);
+      playerButtonsDiv.appendChild(button);
+    });
+
+    function startGame(n) {
+      numPlayers = n;
+      for (let i=1;i<=n;i++) {
+        playerProgress[i] = 0;
       }
-      currentPlayer = 0;
-      document.getElementById("menu").classList.add("hidden");
-      document.getElementById("game").classList.remove("hidden");
-      nextTurn();
+      currentPlayer = 1;
+      currentRound = 1;
+      startRound();
     }
 
-    function nextTurn() {
-      if (players.every(p => !p.active || p.round > 3)) {
-        const winner = players.some(p => p.active && p.round > 3);
-        endGame(winner);
+    function startRound() {
+      if (currentRound > totalRounds) {
+        endGame();
         return;
       }
-      while (!players[currentPlayer].active || players[currentPlayer].round > 3) {
-        currentPlayer = (currentPlayer + 1) % players.length;
-      }
-      const player = players[currentPlayer];
-      currentRound = player.round;
-      document.getElementById("playerLabel").textContent = `🎤 Player ${currentPlayer + 1} - Round ${currentRound}`;
-      askNoteChoice();
-    }
+      statusDiv.textContent = `Player ${currentPlayer}, Round ${currentRound}: Choose sequence length.`;
+      noteButtonsDiv.innerHTML = '';
+      noteSequenceDiv.textContent = '';
+      passFailButtonsDiv.innerHTML = '';
+      timerDiv.textContent = '';
 
-    function askNoteChoice() {
-      let options;
-      if (currentRound === 1) options = [4, 5, 6];
-      else if (currentRound === 2) options = [5, 6, 7];
-      else options = [6, 7, 8];
-
-      const promptDiv = document.getElementById("notePrompt");
-      promptDiv.innerHTML = `<p>Choose number of notes:</p>` + options.map(n => `<button onclick="generateSequence(${n})">${n}</button>`).join(" ");
-      document.getElementById("noteSequence").textContent = "";
+      const choices = roundChoices[currentRound -1];
+      choices.forEach(length => {
+        const button = document.createElement('button');
+        button.textContent = `${length} Notes`;
+        button.onclick = () => {
+          generateSequence(length);
+          startTimer();
+        };
+        noteButtonsDiv.appendChild(button);
+      });
     }
 
     function generateSequence(length) {
-      currentSequence = [];
-      for (let i = 0; i < length; i++) {
-        const note = NOTES[Math.floor(Math.random() * NOTES.length)];
-        currentSequence.push(note);
+      let seq = [];
+      while(seq.length < length){
+        const n = notes[Math.floor(Math.random()*notes.length)];
+        seq.push(n);
       }
-      document.getElementById("notePrompt").innerHTML = "";
-      document.getElementById("noteSequence").textContent = currentSequence.join(" - ");
-
-      setTimeout(() => {
-        document.getElementById("noteSequence").textContent += " ⏰";
-      }, 10000);
+      noteSequenceDiv.textContent = seq.join(" - ");
+      noteButtonsDiv.innerHTML = '';
+      showPassFail();
     }
 
-    function submitResult(passed) {
-      const player = players[currentPlayer];
-      if (passed) {
-        document.getElementById("successSound").play();
-        player.round++;
+    function startTimer() {
+      let timeLeft = 10;
+      timerDiv.textContent = `Time left: ${timeLeft}`;
+      const timerInterval = setInterval(() => {
+        timeLeft--;
+        if (timeLeft <=0){
+          clearInterval(timerInterval);
+          timerDiv.textContent = "Time's up!";
+          playSound('time_up.mp3');
+        } else {
+          timerDiv.textContent = `Time left: ${timeLeft}`;
+        }
+      },1000);
+    }
+
+    function showPassFail() {
+      passFailButtonsDiv.innerHTML = '';
+      const pass = document.createElement('button');
+      pass.textContent = "Pass";
+      pass.onclick = () => {
+        playerProgress[currentPlayer]++;
+        advanceTurn();
+      };
+      const fail = document.createElement('button');
+      fail.textContent = "Fail";
+      fail.onclick = () => {
+        advanceTurn(true);
+      };
+      passFailButtonsDiv.appendChild(pass);
+      passFailButtonsDiv.appendChild(fail);
+    }
+
+    function advanceTurn(failed=false){
+      if (failed){
+        playerProgress[currentPlayer] = -1; // mark as out
+      }
+      // Check if all failed
+      const active = Object.values(playerProgress).filter(p => p >=0);
+      if (active.length==0){
+        endGame(false);
+        return;
+      }
+      // Move to next player
+      do {
+        currentPlayer++;
+        if (currentPlayer>numPlayers){
+          currentPlayer=1;
+          currentRound++;
+        }
+      } while(playerProgress[currentPlayer]<0);
+
+      if (currentRound>totalRounds){
+        endGame(true);
       } else {
-        document.getElementById("failSound").play();
-        player.active = false;
+        startRound();
       }
-      currentPlayer = (currentPlayer + 1) % players.length;
-      nextTurn();
     }
 
-    function endGame(won) {
-      document.getElementById("game").classList.add("hidden");
-      document.getElementById("endScreen").classList.remove("hidden");
-      document.getElementById("endMessage").textContent = won ? "🎸 YOU DEFEATED THE ROCK GODS! LEGENDARY!" : "😢 DEFEAT! The Gods remain unchallenged...";
+    function endGame(success=true){
+      noteButtonsDiv.innerHTML = '';
+      passFailButtonsDiv.innerHTML = '';
+      noteSequenceDiv.textContent = '';
+      timerDiv.textContent = '';
+      if (success){
+        statusDiv.textContent = "YOU HAVE DEFEATED THE ROCK GODS! You are true Rock Legends!";
+        playSound('success.mp3');
+      } else {
+        statusDiv.textContent = "The Rock Gods have crushed your spirit. Rock regresses to safe mediocrity...";
+        playSound('fail.mp3');
+      }
+    }
+
+    function playSound(src){
+      const audio = new Audio(src);
+      audio.play();
     }
   </script>
 </body>
