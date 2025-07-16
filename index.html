@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>🎸 Rock Gods Final Challenge</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      background: radial-gradient(circle at center, #1a001a 0%, #000010 100%);
+      color: #fff;
+      font-family: 'Orbitron', sans-serif;
+      text-align: center;
+      padding: 20px;
+    }
+    h1 {
+      font-size: 2em;
+      background: linear-gradient(45deg, #ff00ff, #8000ff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 20px;
+    }
+    #game {
+      max-width: 600px;
+      margin: auto;
+      padding: 20px;
+      border: 2px solid #8000ff;
+      border-radius: 10px;
+      background: rgba(0,0,0,0.7);
+    }
+    button {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 1em;
+      padding: 10px 20px;
+      margin: 5px;
+      border: none;
+      border-radius: 5px;
+      background: linear-gradient(45deg, #ff00ff, #8000ff);
+      color: white;
+      cursor: pointer;
+      box-shadow: 0 0 10px #ff00ff;
+      transition: transform 0.2s;
+    }
+    button:hover {
+      transform: scale(1.1);
+    }
+    .hidden {
+      display: none;
+    }
+    #notes {
+      font-size: 1.5em;
+      margin: 20px 0;
+    }
+    #timer {
+      font-size: 1.2em;
+      margin-bottom: 20px;
+    }
+    #noteCountSelection button {
+      width: 60px;
+    }
+  </style>
+</head>
+<body>
+  <h1>🎸 Rock Gods Final Challenge</h1>
+  <div id="game">
+    <div id="playerSelection">
+      <p>Select number of players:</p>
+      <button onclick="startGame(2)">2 Players</button>
+      <button onclick="startGame(3)">3 Players</button>
+      <button onclick="startGame(4)">4 Players</button>
+    </div>
+    <div id="gameplay" class="hidden">
+      <p id="status"></p>
+      <div id="noteCountSelection" class="hidden">
+        <p>Select how many notes:</p>
+      </div>
+      <div id="notes"></div>
+      <div id="timer"></div>
+      <button id="passBtn" class="hidden" onclick="handlePass()">Pass</button>
+      <button id="failBtn" class="hidden" onclick="handleFail()">Fail</button>
+    </div>
+    <div id="endScreen" class="hidden">
+      <h2 id="endMessage"></h2>
+      <button onclick="location.reload()">Play Again</button>
+    </div>
+  </div>
+
+  <audio id="bgMusic" src="background.mp3" loop></audio>
+  <audio id="successSound" src="success.mp3"></audio>
+  <audio id="failSound" src="fail.mp3"></audio>
+
+  <script>
+    const NOTES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+    const ROUNDS = [
+      [4,5,6],
+      [5,6,7],
+      [6,7,8]
+    ];
+
+    let playerCount = 0;
+    let currentPlayer = 0;
+    let currentRound = 0;
+    let activePlayers = [];
+    let timerInterval;
+    let timeLeft = 10;
+
+    const playerSelectionDiv = document.getElementById('playerSelection');
+    const gameplayDiv = document.getElementById('gameplay');
+    const endScreenDiv = document.getElementById('endScreen');
+    const statusP = document.getElementById('status');
+    const notesDiv = document.getElementById('notes');
+    const timerDiv = document.getElementById('timer');
+    const passBtn = document.getElementById('passBtn');
+    const failBtn = document.getElementById('failBtn');
+    const endMessage = document.getElementById('endMessage');
+    const noteCountSelectionDiv = document.getElementById('noteCountSelection');
+    const bgMusic = document.getElementById('bgMusic');
+    const successSound = document.getElementById('successSound');
+    const failSound = document.getElementById('failSound');
+
+    function startGame(players) {
+      playerCount = players;
+      activePlayers = Array(players).fill(true);
+      playerSelectionDiv.classList.add('hidden');
+      gameplayDiv.classList.remove('hidden');
+      bgMusic.play().catch(() => {
+        document.body.addEventListener('click', () => bgMusic.play(), {once: true});
+      });
+      currentPlayer = 0;
+      currentRound = 0;
+      nextTurn();
+    }
+
+    function nextTurn() {
+      if (activePlayers.every(p => p === false)) {
+        endGame(false);
+        return;
+      }
+
+      if (currentPlayer >= playerCount) {
+        currentPlayer = 0;
+        currentRound++;
+        if (currentRound >= ROUNDS.length) {
+          endGame(true);
+          return;
+        }
+      }
+
+      if (!activePlayers[currentPlayer]) {
+        currentPlayer++;
+        nextTurn();
+        return;
+      }
+
+      statusP.textContent = `Player ${currentPlayer + 1} - Round ${currentRound + 1}`;
+      showNoteCountOptions();
+    }
+
+    function showNoteCountOptions() {
+      noteCountSelectionDiv.innerHTML = '<p>Select how many notes:</p>';
+      const counts = ROUNDS[currentRound];
+      counts.forEach(count => {
+        const btn = document.createElement('button');
+        btn.textContent = count;
+        btn.onclick = () => startNoteChallenge(count);
+        noteCountSelectionDiv.appendChild(btn);
+      });
+      noteCountSelectionDiv.classList.remove('hidden');
+      notesDiv.textContent = '';
+      timerDiv.textContent = '';
+      passBtn.classList.add('hidden');
+      failBtn.classList.add('hidden');
+    }
+
+    function startNoteChallenge(noteCount) {
+      noteCountSelectionDiv.classList.add('hidden');
+      const selectedNotes = [];
+      for (let i = 0; i < noteCount; i++) {
+        selectedNotes.push(NOTES[Math.floor(Math.random() * NOTES.length)]);
+      }
+      notesDiv.textContent = selectedNotes.join(' - ');
+      timeLeft = 10;
+      timerDiv.textContent = `Time Left: ${timeLeft}s`;
+      timerInterval = setInterval(() => {
+        timeLeft--;
+        timerDiv.textContent = `Time Left: ${timeLeft}s`;
+        if (timeLeft <= 0) {
+          clearInterval(timerInterval);
+          passBtn.classList.remove('hidden');
+          failBtn.classList.remove('hidden');
+        }
+      }, 1000);
+    }
+
+    function handlePass() {
+      successSound.play();
+      currentPlayer++;
+      nextTurn();
+    }
+
+    function handleFail() {
+      failSound.play();
+      activePlayers[currentPlayer] = false;
+      currentPlayer++;
+      nextTurn();
+    }
+
+    function endGame(victory) {
+      gameplayDiv.classList.add('hidden');
+      endScreenDiv.classList.remove('hidden');
+      endMessage.textContent = victory ? '🎉 Victory! The Rock Gods power is shattered! They cast aside their weapons and acknowledge the change in the winds that are blowing, and they are blowing your hair as a heavenly ray shines down and... Holy hell thats one sexy ass mother... Ahem, The Gods have allowed you to chart Rocks new way forward undaunted by what has come before, a true Rock Legend whose name will live on in the annals of history. What a GOAT' : '💀 Defeat! All players failed! All is lost, Rock regresses back to old and tried tropes, reliving the same safe melodies and hits for all eternity. An undercurrent, though faint still flows through battered Rock souls, a Rock rebel energy still lives on, waiting for the tides of musical revolution once again to yearn for something... more';
+    }
+  </script>
+</body>
+</html>
